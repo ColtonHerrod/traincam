@@ -13,12 +13,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [linux, windows]
         arch: [amd64]
         include:
-          - os: ubuntu-latest
+          - os: linux
             binary-name: traincam
-          - os: windows-latest
+          - os: windows
             binary-name: traincam.exe
 
     steps:
@@ -34,12 +34,6 @@ jobs:
       - name: Install Wails CLI
         run: |
           go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Download frontend dependencies
-        run: |
-          cd frontend
-          npm install
-          npm run build
 
       - name: Build ${{ matrix.os }}
         run: |
@@ -64,12 +58,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [linux, darwin]
         include:
-          - os: ubuntu-latest
+          - os: linux
             binary-name: traincam-arm64
             platform: linux/arm64
-          - os: macos-latest
+          - os: darwin
             binary-name: traincam-arm64
             platform: darwin/arm64
 

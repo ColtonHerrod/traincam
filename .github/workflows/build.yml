@@ -2,8 +2,6 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*' # Triggers on any tag starting with v
   workflow_dispatch: # Allows manual trigger
 
 jobs:

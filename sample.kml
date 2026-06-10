@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Train Camera Locations</name>
+    <description>Sample KML file with train camera locations</description>
+    
+    <Placemark>
+      <name>Victoria Station</name>
+      <description>Main line terminus with multiple camera positions</description>
+      <Point>
+        <coordinates>-0.1437,51.4945,0</coordinates>
+      </Point>
+    </Placemark>
+    
+    <Placemark>
+      <name>King's Cross</name>
+      <description>Northern line station with good view of platforms</description>
+      <Point>
+        <coordinates>-0.1219,51.5307,0</coordinates>
+      </Point>
+    </Placemark>
+    
+    <Placemark>
+      <name>Paddington Interchange</name>
+      <description>Major interchange point for multiple lines</description>
+      <Point>
+        <coordinates>-0.1759,51.5156,0</coordinates>
+      </Point>
+    </Placemark>
+    
+    <Placemark>
+      <name>Liverpool Street</name>
+      <description>Historic terminus with frequent services</description>
+      <Point>
+        <coordinates>-0.0819,51.5176,0</coordinates>
+      </Point>
+    </Placemark>
+    
+    <Placemark>
+      <name>Tower Bridge Approach</name>
+      <description>Scenic bridge crossing views</description>
+      <Point>
+        <coordinates>-0.0754,51.5055,0</coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>

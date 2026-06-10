@@ -1,0 +1,10 @@
+{
+  "name": "traincam",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:serverUrl": "",
+  "wailsjsdir": "frontend/wailsjs",
+  "security": {
+    "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; frame-src https://www.youtube.com https://youtube.com; img-src 'self' https:; font-src 'self' https://unpkg.com; connect-src 'self' https://www.youtube.com"
+  }
+}

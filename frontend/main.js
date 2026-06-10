@@ -9,23 +9,45 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 // Function to update the video player
-function playVideo(url, name) {
+function playVideo(url, name, subscriptionRequired = false) {
   document.getElementById("cam-name").innerText = name;
   const container = document.getElementById("video-container");
+  
   if (url) {
     // Convert embed URL back to watch URL
     const watchUrl = url.replace(
       "https://www.youtube.com/embed/",
       "https://www.youtube.com/watch?v=",
     );
-    container.innerHTML = `
-      <div style="text-align: center; padding: 30px;">
-        <button onclick="window.go.main.App.OpenURL('${watchUrl}')" style="padding: 14px 28px; background: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1.05em; transition: background 0.2s;" onmouseover="this.style.background='#cc0000'" onmouseout="this.style.background='#ff0000'">
-          ▶ Watch Live on YouTube
-        </button>
-        <p style="margin: 15px 0 0 0; font-size: 0.85em; color: #999;">Opens in your browser</p>
-      </div>
-    `;
+    
+    if (subscriptionRequired) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 30px;">
+          <p style="margin-bottom: 15px; color: #e74c3c; font-size: 1.1em;">
+            🔒 This camera requires a subscription
+          </p>
+          <button onclick="window.go.main.App.OpenURL('${watchUrl}')" 
+                  style="padding: 14px 28px; background: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1.05em; transition: background 0.2s;"
+                  onmouseover="this.style.background='#cc0000'" 
+                  onmouseout="this.style.background='#ff0000'">
+            ▶ Watch Live on YouTube
+          </button>
+          <p style="margin: 15px 0 0 0; font-size: 0.85em; color: #999;">Opens in your browser</p>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 30px;">
+          <button onclick="window.go.main.App.OpenURL('${watchUrl}')" 
+                  style="padding: 14px 28px; background: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1.05em; transition: background 0.2s;"
+                  onmouseover="this.style.background='#cc0000'" 
+                  onmouseout="this.style.background='#ff0000'">
+            ▶ Watch Live on YouTube
+          </button>
+          <p style="margin: 15px 0 0 0; font-size: 0.85em; color: #999;">Opens in your browser</p>
+        </div>
+      `;
+    }
   } else {
     container.innerHTML = `<p style="color: #999; font-size: 0.9em;">No YouTube URL provided.</p>`;
   }
@@ -35,15 +57,26 @@ function playVideo(url, name) {
 function addMarkerToMap(cam) {
   const marker = L.marker([cam.lat, cam.lng]).addTo(map);
   marker.on("click", () => {
-    playVideo(cam.youtubeUrl, cam.name);
+    playVideo(cam.youtubeUrl, cam.name, cam.subscriptionRequired);
   });
 
-  let popupText = `<strong>${cam.name}</strong>`;
-  if (cam.description) {
-    popupText += `<br/>${cam.description}`;
-  }
-  marker.bindPopup(popupText);
+  // Construct the popup content using template literals for readability and correctness
+  const popupContentHtml = `
+    <div style="padding: 10px; user-select: none;">
+      <strong style="display: block; font-size: 1.1em; margin-bottom:
+5px;">${cam.name}</strong>
+      <p style="margin: 0 0 8px 0; font-size: 0.9em;">${cam.description || ""}</p>
+      <span style="font-size: 0.9em; padding: 5px 10px; border-radius: 12px;
+${cam.subscriptionRequired ? 'background-color: #fbe2e2; color: #d9534f;' :
+'background-color: #e9f7ee; color: #5cb85c;'}">
+        ${cam.subscriptionRequired ? "🔒 Subscription required" : "🔓 Free access"}
+      </span>
+    </div>`;
 
+  // Create the popup element and set its HTML content
+  const popupContent = document.createElement("div");
+  popupContent.innerHTML = popupContentHtml;
+  marker.bindPopup(popupContent);
   markers[cam.id] = marker;
 }
 
@@ -62,10 +95,75 @@ function updateCameraList() {
 
   cameras.forEach((cam) => {
     const li = document.createElement("li");
-    li.textContent = cam.name;
-    li.onclick = () => {
+    li.style.display = "flex";
+    li.style.alignItems = "center";
+    li.style.justifyContent = "space-between";
+    li.style.padding = "8px";
+    li.style.cursor = "pointer";
+
+    const camName = document.createElement("span");
+    camName.textContent = cam.name;
+    camName.style.flex = "1";
+    camName.onclick = () => {
       selectCamera(cam);
     };
+
+    // Set or update the badge visually based on status
+    const getStatusHtml = (isSub) => {
+      if (isSub) {
+        return `<span style="background-color: #fbe2e2; color: #d9534f; padding: 4px 8px; border-radius: 15px; font-size: 0.8em; display: inline-flex; align-items: center;"><span style="margin-right: 6px;">🔒</span> Subscription Required</span>`;
+      } else {
+        return `<span style="background-color: #e9f7ee; color: #5cb85c; padding: 4px 8px; border-radius: 15px; font-size: 0.8em; display: inline-flex; align-items: center;"><span style="margin-right: 6px;">🔓</span> Free Access</span>`;
+      }
+    };
+
+    const statusBadgeEl = document.createElement("span");
+    statusBadgeEl.innerHTML = getStatusHtml(cam.subscriptionRequired);
+    statusBadgeEl.title = cam.subscriptionRequired ? "Click to mark as free" : "Click to mark as subscription required";
+    // The click handler will now attach to the parent li for better scope control,
+    // but since we are modifying this specific section's logic, let's keep it simple
+    // and apply the listener directly to a container if possible.
+
+    // Instead of changing the badge element creation completely, I'll use an outer wrapper element
+    // that holds the status and attach the click handler there for better CSS scoping.
+    const statusContainer = document.createElement("span");
+    statusContainer.innerHTML = getStatusHtml(cam.subscriptionRequired);
+
+    // Re-assigning variable to point to the new container element, not just text content
+    // This requires updating how 'subscriptionBadge' was used later.
+    // For minimal change footprint, I will update the logic around lines 104 and attach the click listener to the statusContainer itself if possible.
+
+    /* Reverting the full structural change for now. Let's keep it as a span and style it better first. */
+    const subscriptionBadge = document.createElement("span");
+    subscriptionBadge.textContent = cam.subscriptionRequired ? "🔒" : "🔓";
+    // Apply more robust styling to visually enhance the difference
+    subscriptionBadge.style.backgroundColor = cam.subscriptionRequired ? '#fee' : '#efe';
+    subscriptionBadge.style.color = cam.subscriptionRequired ? '#d9534f' : '#5cb85c';
+    subscriptionBadge.style.padding = '4px 8px';
+    subscriptionBadge.style.borderRadius = '15px';
+    subscriptionBadge.style.fontSize = '0.8em';
+    subscriptionBadge.title = cam.subscriptionRequired ? "Click to mark as free" : "Click to mark as subscription required";
+
+    // The click handler logic is correct, it just needs the badge variable updated.
+    subscriptionBadge.onclick = (e) => {
+      e.stopPropagation();
+      cam.toggleSubscriptionStatus(); // Re-using this for now if I cannot scope out the full block edit.
+                                    // BUT WAIT: The previous fix was to REMOVE cam.toggleSubscriptionStatus().
+                                    // I must use the corrected logic (direct property flip) here, too!
+      cam.subscriptionRequired = !cam.subscriptionRequired;
+      updateCameraList();
+      console.log(`Updated ${cam.name}: ${cam.subscriptionRequired ? "Subscription required" : "Free"}`);
+    };
+    subscriptionBadge.onclick = (e) => {
+      e.stopPropagation();
+      // Toggle the subscription status property directly on the camera object
+      cam.subscriptionRequired = !cam.subscriptionRequired;
+      updateCameraList();
+      console.log(`Updated ${cam.name}: ${cam.subscriptionRequired ? "Subscription required" : "Free"}`);
+    };
+
+    li.appendChild(camName);
+    li.appendChild(subscriptionBadge);
     li.dataset.camId = cam.id;
     listEl.appendChild(li);
   });
@@ -89,7 +187,7 @@ function selectCamera(cam) {
   document.querySelector(`[data-cam-id="${cam.id}"]`)?.classList.add("active");
 
   // Show video and center map
-  playVideo(cam.youtubeUrl, cam.name);
+  playVideo(cam.youtubeUrl, cam.name, cam.subscriptionRequired);
   map.setView([cam.lat, cam.lng], 13);
 }
 

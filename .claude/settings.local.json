@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(wails dev *)"
+      "Bash(wails dev *)",
+      "Bash(wails build *)"
     ]
   }
 }

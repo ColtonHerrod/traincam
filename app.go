@@ -17,14 +17,15 @@ import (
 
 // Camera represents our train camera data
 type Camera struct {
-	ID          int     `json:"id"`
-	Name        string  `json:"name"`
-	Lat         float64 `json:"lat"`
-	Lng         float64 `json:"lng"`
-	YoutubeURL  string  `json:"youtubeUrl"`
-	Description string  `json:"description"`
-	Country     string  `json:"country"`
-	State       string  `json:"state"`
+	ID                 int     `json:"id"`
+	Name               string  `json:"name"`
+	Lat                float64 `json:"lat"`
+	Lng                float64 `json:"lng"`
+	YoutubeURL         string  `json:"youtubeUrl"`
+	Description        string  `json:"description"`
+	Country            string  `json:"country"`
+	State              string  `json:"state"`
+	SubscriptionRequired bool `json:"subscriptionRequired"`
 }
 
 // App struct
@@ -69,18 +70,20 @@ func NewApp() *App {
 		nextID: 1,
 		cameras: []Camera{
 			{
-				ID:         1,
-				Name:       "Central Station North",
-				Lat:        51.505,
-				Lng:        -0.09,
-				YoutubeURL: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+				ID:                 1,
+				Name:               "Central Station North",
+				Lat:                51.505,
+				Lng:                -0.09,
+				YoutubeURL:         "https://www.youtube.com/embed/dQw4w9WgXcQ",
+				SubscriptionRequired: false,
 			},
 			{
-				ID:         2,
-				Name:       "East Junction Crossing",
-				Lat:        51.515,
-				Lng:        -0.1,
-				YoutubeURL: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+				ID:                 2,
+				Name:               "East Junction Crossing",
+				Lat:                51.515,
+				Lng:                -0.1,
+				YoutubeURL:         "https://www.youtube.com/embed/dQw4w9WgXcQ",
+				SubscriptionRequired: false,
 			},
 		},
 	}
@@ -204,15 +207,14 @@ func (a *App) ImportKML(filePath string) ([]Camera, error) {
 		if youtubeUrl == "" {
 			youtubeUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ"
 		}
-
-		camera := Camera{
-
-			ID:          a.nextID,
-			Name:        pm.Name,
-			Lat:         lat,
-			Lng:         lng,
-			Description: pm.Description,
-			YoutubeURL:  youtubeUrl,
+			camera := Camera{
+				ID:                 a.nextID,
+				Name:               pm.Name,
+				Lat:                lat,
+				Lng:                lng,
+				Description:        pm.Description,
+				YoutubeURL:         youtubeUrl,
+				SubscriptionRequired: false,
 		}
 
 		a.cameras = append(a.cameras, camera)
@@ -292,7 +294,7 @@ func extractYoutubeURL(description string) string {
 			// Find the end of the video ID (until space, quote, comma, period, question mark, &, <, >, /, =, or end of string)
 			videoIDEnd := videoIDStart
 			for videoIDEnd < len(description) && description[videoIDEnd] != ' ' &&
-				description[videoIDEnd] != '"' && description[videoIDEnd] != '"' &&
+				description[videoIDEnd] != '"' &&
 				description[videoIDEnd] != '\'' && description[videoIDEnd] != ',' &&
 				description[videoIDEnd] != '.' && description[videoIDEnd] != '?' &&
 				description[videoIDEnd] != '&' && description[videoIDEnd] != '<' &&

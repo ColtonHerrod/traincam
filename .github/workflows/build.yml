@@ -3,21 +3,22 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - 'v*' # Triggers on any tag starting with v
+  workflow_dispatch: # Allows manual trigger
 
 jobs:
+  # ====================
+  # 1. Build Native Artifacts (x86/x64)
+  # ====================
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
         arch: [amd64]
         include:
           - os: ubuntu-latest
-            binary-name: traincam
-          - os: macos-latest
             binary-name: traincam
           - os: windows-latest
             binary-name: traincam.exe
@@ -29,7 +30,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.26'
           cache: true
 
       - name: Install Wails CLI
@@ -54,7 +55,12 @@ jobs:
           path: build/bin/${{ matrix.binary-name }}
           retention-days: 30
           if-no-files-found: error
+          # ONLY upload artifacts if the push was triggered by a tag (v* format)
+          if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
 
+  # ====================
+  # 2. Build Native Artifacts (ARM64)
+  # ====================
   build-arm64:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -76,12 +82,18 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.26'
           cache: true
 
       - name: Install Wails CLI
         run: |
           go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Download frontend dependencies
+        run: |
+          cd frontend
+          npm install
+          npm run build
 
       - name: Build ${{ matrix.os }} (ARM64)
         run: |
@@ -95,3 +107,46 @@ jobs:
           path: build/bin/${{ matrix.binary-name }}
           retention-days: 30
           if-no-files-found: error
+          # ONLY upload artifacts if the push was triggered by a tag (v* format)
+          if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+
+  # ====================
+  # 3. Create Release (Runs only on tags and uses generated artifacts)
+  # ====================
+  create-release:
+    needs: [build, build-arm64] # Ensure both builds complete first
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+    environment: production # Use a protected environment if desired
+    steps:
+      - name: Download artifacts - ${{ matrix.os }} (x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: traincam-${{ matrix.os }}-${{ matrix.arch }}
+          path: ./build/${{ matrix.binary-name }}
+
+      - name: Download artifacts - ${{ matrix.os }}-arm64 (ARM)
+        uses: actions/download-artifact@v4
+        with:
+          name: traincam-${{ matrix.os }}-arm64
+          path: ./build/arm64/${{ matrix.binary-name }}
+
+      - name: Create GitHub Release
+        run: |
+          # The git tag automatically provides the release version (e.g., v1.2.3)
+          RELEASE_TAG=${GITHUB_REF_NAME}
+          echo "Creating release $RELEASE_TAG..."
+
+          # Use a temporary subdirectory to store all binaries before creating the release assets
+          mkdir -p ./release-assets
+          cp ./build/${{ matrix.binary-name }}/. ${{ matrix.os }}/${{ matrix.arch }} ./release-assets/
+          cp ./build/arm64/${{ matrix.binary-name }}/. ${{ matrix.os }}-${{ matrix.arch }}/ ./release-assets/
+
+          # Create the GitHub Release via CLI (requires GITHUB_TOKEN access)
+          gh release create "$RELEASE_TAG" \
+            --title "Release $RELEASE_TAG" \
+            --body "Automated build for version $RELEASE_TAG on ${{ github.ref_name }}. Built by Claude Code." \
+            --target ${{ secrets.GITHUB_TOKEN }} \
+            --assets-with-git-tag "$RELEASE_TAG" --asset ./release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

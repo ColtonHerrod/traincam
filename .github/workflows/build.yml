@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [linux, windows]
+        os: [ubuntu-latest, windows-latest]
         arch: [amd64]
         include:
           - os: linux
@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [linux, darwin]
+        os: [ubuntu-latest, macos-latest]
         include:
           - os: linux
             binary-name: traincam-arm64

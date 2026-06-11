@@ -39,7 +39,7 @@ jobs:
 
       - name: Install Ubuntu Dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+        run: sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Build ${{ matrix.os }}
         run: |
@@ -96,7 +96,7 @@ jobs:
 
       - name: Install Ubuntu Dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install libgtk-3-dev
+        run: sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Build ${{ matrix.os }} (ARM64)
         run: |

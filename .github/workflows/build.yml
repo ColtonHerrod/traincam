@@ -74,10 +74,10 @@ jobs:
         os: [ubuntu-22.04-arm, macos-latest]
         include:
           - os: ubuntu-22.04-arm
-            binary-name: traincam-arm64
+            binary-name: traincam
             platform: linux/arm64
           - os: macos-latest
-            binary-name: traincam-arm64
+            binary-name: traincam
             platform: darwin/arm64
 
     steps:

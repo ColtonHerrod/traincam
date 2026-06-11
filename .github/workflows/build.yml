@@ -146,7 +146,7 @@ jobs:
           # Create the GitHub Release via CLI (requires GITHUB_TOKEN access)
           gh release create "$RELEASE_TAG" \
             --title "Release $RELEASE_TAG" \
-            --body "Automated build for version $RELEASE_TAG on ${{ github.ref_name }}." \
+            --notes "Automated build for version $RELEASE_TAG on ${{ github.ref_name }}." \
             --target ${{ secrets.GITHUB_TOKEN }} \
             --assets-with-git-tag "$RELEASE_TAG" --asset ./release-assets/*
         env:

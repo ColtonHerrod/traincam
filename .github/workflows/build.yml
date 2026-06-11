@@ -39,7 +39,7 @@ jobs:
 
       - name: Build ${{ matrix.os }}
         run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
+          export PATH=${PATH}:$(go env GOPATH)/bin
           wails build -platform ${{ matrix.platform }}
 
       - name: Upload artifact - ${{ matrix.os }}

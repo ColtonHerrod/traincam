@@ -16,10 +16,12 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         arch: [amd64]
         include:
-          - os: linux
+          - os: ubuntu-latest
             binary-name: traincam
-          - os: windows
+            platform: linux/amd64
+          - os: windows-latest
             binary-name: traincam.exe
+            platform: windows/amd64
 
     steps:
       - name: Checkout code
@@ -38,7 +40,7 @@ jobs:
       - name: Build ${{ matrix.os }}
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          wails build -platform ${{ matrix.os }}/${{ matrix.arch }}
+          wails build -platform ${{ matrix.platform }}
 
       - name: Upload artifact - ${{ matrix.os }}
         uses: actions/upload-artifact@v4
@@ -60,10 +62,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         include:
-          - os: linux
+          - os: ubuntu-latest
             binary-name: traincam-arm64
             platform: linux/arm64
-          - os: darwin
+          - os: macos-latest
             binary-name: traincam-arm64
             platform: darwin/arm64
 

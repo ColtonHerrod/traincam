@@ -2,7 +2,11 @@ name: Build and Release
 
 on:
   push:
+    branches:
+      - 'main'
   workflow_dispatch: # Allows manual trigger
+  release:
+    types: [published]
 
 jobs:
   # ====================
@@ -60,8 +64,7 @@ jobs:
           path: build/bin/${{ matrix.binary-name }}
           retention-days: 30
           if-no-files-found: error
-          # ONLY upload artifacts if the push was triggered by a tag (v* format)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        if: github.event_name == 'release'
 
   # ====================
   # 2. Build Native Artifacts (ARM64)
@@ -111,7 +114,7 @@ jobs:
           retention-days: 30
           if-no-files-found: error
           # ONLY upload artifacts if the push was triggered by a tag (v* format)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-22.04-arm'
+        if: github.event_name == 'release'
 
       - name: Upload artifact - ${{ matrix.os }}-arm64
         uses: actions/upload-artifact@v4
@@ -121,7 +124,8 @@ jobs:
           retention-days: 30
           if-no-files-found: error
           # ONLY upload artifacts if the push was triggered by a tag (v* format)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && matrix.os == 'macos-latest'
+        if: github.event_name == 'release'
+
 
   # ====================
   # 3. Create Release (Runs only on tags and uses generated artifacts)
@@ -129,7 +133,6 @@ jobs:
   create-release:
     needs: [build, build-arm64] # Ensure both builds complete first
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
     environment: production # Use a protected environment if desired
     steps:
       - name: Download artifacts
@@ -143,6 +146,7 @@ jobs:
           RELEASE_TAG=${GITHUB_REF_NAME}
 
           # Create the GitHub Release via CLI (requires GITHUB_TOKEN access)
-          gh release upload ${RELEASE_TAG} ./release-assets/*
+          gh release upload ${{github.event.release.tag_name}} ./release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    if: github.event_name == 'release'

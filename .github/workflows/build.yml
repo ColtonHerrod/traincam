@@ -111,7 +111,17 @@ jobs:
           retention-days: 30
           if-no-files-found: error
           # ONLY upload artifacts if the push was triggered by a tag (v* format)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-22.04-arm'
+
+      - name: Upload artifact - ${{ matrix.os }}-arm64
+        uses: actions/upload-artifact@v4
+        with:
+          name: traincam-${{ matrix.os }}-arm64
+          path: build/bin/${{ matrix.binary-name }}.app/Contents/MacOS/${{ matrix.binary-name }}
+          retention-days: 30
+          if-no-files-found: error
+          # ONLY upload artifacts if the push was triggered by a tag (v* format)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && matrix.os == 'macos-latest'
 
   # ====================
   # 3. Create Release (Runs only on tags and uses generated artifacts)

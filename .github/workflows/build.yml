@@ -113,8 +113,7 @@ jobs:
           path: build/bin/${{ matrix.binary-name }}
           retention-days: 30
           if-no-files-found: error
-          # ONLY upload artifacts if the push was triggered by a tag (v* format)
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && matrix.os == 'ubuntu-22.04-arm'
 
       - name: Upload artifact - ${{ matrix.os }}-arm64
         uses: actions/upload-artifact@v4
@@ -123,8 +122,7 @@ jobs:
           path: build/bin/${{ matrix.binary-name }}.app/Contents/MacOS/${{ matrix.binary-name }}
           retention-days: 30
           if-no-files-found: error
-          # ONLY upload artifacts if the push was triggered by a tag (v* format)
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && matrix.os == 'macos-latest'
 
 
   # ====================

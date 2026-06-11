@@ -132,28 +132,16 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
     environment: production # Use a protected environment if desired
     steps:
-      - name: Download artifacts - ${{ matrix.os }} (x64)
-        uses: actions/download-artifact@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
         with:
-          name: traincam-${{ matrix.os }}-${{ matrix.arch }}
-          path: ./build/${{ matrix.binary-name }}
-
-      - name: Download artifacts - ${{ matrix.os }}-arm64 (ARM)
-        uses: actions/download-artifact@v4
-        with:
-          name: traincam-${{ matrix.os }}-arm64
-          path: ./build/arm64/${{ matrix.binary-name }}
+          path: release-assets
 
       - name: Create GitHub Release
         run: |
           # The git tag automatically provides the release version (e.g., v1.2.3)
           RELEASE_TAG=${GITHUB_REF_NAME}
           echo "Creating release $RELEASE_TAG..."
-
-          # Use a temporary subdirectory to store all binaries before creating the release assets
-          mkdir -p ./release-assets
-          cp ./build/${{ matrix.binary-name }}/. ${{ matrix.os }}/${{ matrix.arch }} ./release-assets/
-          cp ./build/arm64/${{ matrix.binary-name }}/. ${{ matrix.os }}-${{ matrix.arch }}/ ./release-assets/
 
           # Create the GitHub Release via CLI (requires GITHUB_TOKEN access)
           gh release create "$RELEASE_TAG" \

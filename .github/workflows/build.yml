@@ -144,7 +144,7 @@ jobs:
           RELEASE_TAG=${GITHUB_REF_NAME}
 
           # Create the GitHub Release via CLI (requires GITHUB_TOKEN access)
-          gh release upload ${{github.event.release.tag_name}} ./release-assets/*
+          gh release upload ${{github.event.release.tag_name}} ./release-assets/* --repo ${GITHUB_REPOSITORY}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: github.event_name == 'release'

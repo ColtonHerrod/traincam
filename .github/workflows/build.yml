@@ -58,7 +58,7 @@ jobs:
         if: matrix.os == 'windows-latest'
 
       - name: Upload artifact - ${{ matrix.os }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: traincam-${{ matrix.os }}-${{ matrix.arch }}
           path: build/bin/${{ matrix.binary-name }}
@@ -117,7 +117,7 @@ jobs:
         if: github.event_name == 'release' && matrix.os == 'ubuntu-22.04-arm'
 
       - name: Upload artifact - ${{ matrix.os }}-arm64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: traincam-${{ matrix.os }}-arm64
           path: build/bin/${{ matrix.binary-name }}.app/Contents/MacOS/${{ matrix.binary-name }}

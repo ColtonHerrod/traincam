@@ -140,6 +140,7 @@ jobs:
     needs: [build, build-arm64] # Ensure both builds complete first
     runs-on: ubuntu-latest
     environment: production # Use a protected environment if desired
+    permissions: write-all
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v8

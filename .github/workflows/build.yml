@@ -120,7 +120,7 @@ jobs:
           path: build/bin/${{matrix.final-binary-name}}
           retention-days: 30
           if-no-files-found: error
-          archive: 
+          archive: false
         if: github.event_name == 'release' && matrix.os == 'ubuntu-22.04-arm'
       - name: Upload artifact - ${{ matrix.os }}-arm64
         uses: actions/upload-artifact@v7
@@ -129,7 +129,7 @@ jobs:
           path: build/bin/${{matrix.final-binary-name}}
           retention-days: 30
           if-no-files-found: error
-          archive: false
+          archive: true
         if: github.event_name == 'release' && matrix.os == 'macos-latest'
 
 

@@ -114,15 +114,6 @@ jobs:
           mv build/bin/${{matrix.original-binary-name}} build/bin/${{matrix.final-binary-name}}
 
       - name: Upload artifact - ${{ matrix.os }}-arm64
-        uses: actions/upload-artifact@v4
-        with:
-          name: traincam-${{ matrix.os }}-arm64
-          path: build/bin/${{ matrix.binary-name }}
-          retention-days: 30
-          if-no-files-found: error
-        if: github.event_name == 'release' && matrix.os == 'ubuntu-22.04-arm'
-
-      - name: Upload artifact - ${{ matrix.os }}-arm64
         uses: actions/upload-artifact@v7
         with:
           name: traincam-${{ matrix.os }}-arm64
@@ -130,7 +121,7 @@ jobs:
           retention-days: 30
           if-no-files-found: error
           archive: false
-        if: github.event_name == 'release' && matrix.os == 'macos-latest'
+        if: github.event_name == 'release'
 
 
   # ====================

@@ -80,10 +80,13 @@ jobs:
         os: [ubuntu-22.04-arm, macos-latest]
         include:
           - os: ubuntu-22.04-arm
+            original-binary-name: traincam
+            final-binary-name: traincam-ubuntu-arm
             binary-name: traincam-ubuntu-arm
             platform: linux/arm64
           - os: macos-latest
-            binary-name: traincam-macos.app
+            original-binary-name: traincam.app
+            final-binary-name: traincam-macos.app
             platform: darwin/arm64
 
     steps:
@@ -108,7 +111,7 @@ jobs:
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           wails build -platform ${{ matrix.platform }}
-          mv build/bin/traincam build/bin/${{matrix.binary-name}}
+          mv build/bin/${{matrix.original-binary-name}} build/bin/${{matrix.final-binary-name}}
 
       - name: Upload artifact - ${{ matrix.os }}-arm64
         uses: actions/upload-artifact@v4

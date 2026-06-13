@@ -70,61 +70,10 @@ jobs:
         if: github.event_name == 'release'
 
   # ====================
-  # 2. Build Native Artifacts (ARM64)
-  # ====================
-  build-arm64:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest-arm]
-        include:
-          - os: ubuntu-latest-arm
-            original-binary-name: traincam
-            final-binary-name: traincam-ubuntu-arm
-            binary-name: traincam-ubuntu-arm
-            platform: linux/arm64
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.26'
-          cache: true
-
-      - name: Install Wails CLI
-        run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Install Ubuntu Dependencies
-        if: matrix.os == 'ubuntu-22.04-arm'
-        run: sudo apt-get install -y libwebkit2gtk-4.1-dev
-
-      - name: Build ${{ matrix.os }} (ARM64)
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          wails build -platform ${{ matrix.platform }} -tags webkit2_41
-          mv build/bin/${{matrix.original-binary-name}} build/bin/${{matrix.final-binary-name}}
-
-      - name: Upload artifact - ${{ matrix.os }}-arm64
-        uses: actions/upload-artifact@v7
-        with:
-          name: traincam-${{ matrix.os }}-arm64
-          path: build/bin/${{matrix.final-binary-name}}
-          retention-days: 30
-          if-no-files-found: error
-          archive: false
-        if: github.event_name == 'release' && matrix.os == 'ubuntu-latest-arm'
-
-
-  # ====================
   # 3. Create Release (Runs only on tags and uses generated artifacts)
   # ====================
   create-release:
-    needs: [build, build-arm64] # Ensure both builds complete first
+    needs: [build,] # Ensure builds complete first
     runs-on: ubuntu-latest
     environment: production # Use a protected environment if desired
     permissions: write-all

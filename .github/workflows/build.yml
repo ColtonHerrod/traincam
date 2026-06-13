@@ -64,6 +64,7 @@ jobs:
           path: build/bin/${{ matrix.binary-name }}
           retention-days: 30
           if-no-files-found: error
+          archive: false
         if: github.event_name == 'release'
 
   # ====================
@@ -122,6 +123,7 @@ jobs:
           path: build/bin/${{ matrix.binary-name }}.app/Contents/MacOS/${{ matrix.binary-name }}
           retention-days: 30
           if-no-files-found: error
+          archive: false
         if: github.event_name == 'release' && matrix.os == 'macos-latest'
 
 

@@ -126,7 +126,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: traincam-${{ matrix.os }}-arm64
-          path: build/bin/${{ matrix.binary-name }}.app/Contents/MacOS/${{ matrix.binary-name }}
+          path: build/bin/${{matrix.final-binary-name}}
           retention-days: 30
           if-no-files-found: error
           archive: false

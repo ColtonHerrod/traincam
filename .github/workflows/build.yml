@@ -21,10 +21,10 @@ jobs:
         arch: [amd64]
         include:
           - os: ubuntu-22.04
-            binary-name: traincam
+            binary-name: traincam-ubuntu
             platform: linux/amd64
           - os: windows-latest
-            binary-name: traincam.exe
+            binary-name: traincam-windows.exe
             platform: windows/amd64
 
     steps:
@@ -78,10 +78,10 @@ jobs:
         os: [ubuntu-22.04-arm, macos-latest]
         include:
           - os: ubuntu-22.04-arm
-            binary-name: traincam
+            binary-name: traincam-ubuntu-arm
             platform: linux/arm64
           - os: macos-latest
-            binary-name: traincam
+            binary-name: traincam-macos.app
             platform: darwin/arm64
 
     steps:

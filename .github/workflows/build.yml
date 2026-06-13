@@ -77,17 +77,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04-arm, macos-latest]
+        os: [ubuntu-22.04-arm]
         include:
           - os: ubuntu-22.04-arm
             original-binary-name: traincam
             final-binary-name: traincam-ubuntu-arm
             binary-name: traincam-ubuntu-arm
             platform: linux/arm64
-          - os: macos-latest
-            original-binary-name: traincam.app
-            final-binary-name: traincam-macos.app
-            platform: darwin/arm64
 
     steps:
       - name: Checkout code
@@ -122,15 +118,6 @@ jobs:
           if-no-files-found: error
           archive: false
         if: github.event_name == 'release' && matrix.os == 'ubuntu-22.04-arm'
-      - name: Upload artifact - ${{ matrix.os }}-arm64
-        uses: actions/upload-artifact@v7
-        with:
-          name: traincam-${{ matrix.os }}-arm64
-          path: build/bin/${{matrix.final-binary-name}}
-          retention-days: 30
-          if-no-files-found: error
-          archive: true
-        if: github.event_name == 'release' && matrix.os == 'macos-latest'
 
 
   # ====================

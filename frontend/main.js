@@ -55,7 +55,20 @@ function playVideo(url, name, subscriptionRequired = false) {
 
 // Function to add a marker to the map
 function addMarkerToMap(cam) {
-  const marker = L.marker([cam.lat, cam.lng]).addTo(map);
+  let marker;
+  if (cam.iconUrl && cam.iconUrl !== "") {
+    marker = L.marker([cam.lat, cam.lng], {
+      icon: L.icon({
+        iconUrl: cam.iconUrl,
+        iconSize: [48, 48],
+        iconAnchor: [24, 48],
+        popupAnchor: [0, -48]
+      })
+    }).addTo(map);
+  } else {
+    marker = L.marker([cam.lat, cam.lng]).addTo(map);
+  }
+
   marker.on("click", () => {
     playVideo(cam.youtubeUrl, cam.name, cam.subscriptionRequired);
   });
@@ -93,79 +106,96 @@ function updateCameraList() {
   const listEl = document.getElementById("cameras-list");
   listEl.innerHTML = "";
 
+  // Group cameras by Country and then State
+  const grouped = {};
   cameras.forEach((cam) => {
-    const li = document.createElement("li");
-    li.style.display = "flex";
-    li.style.alignItems = "center";
-    li.style.justifyContent = "space-between";
-    li.style.padding = "8px";
-    li.style.cursor = "pointer";
+    if (!grouped[cam.country]) {
+      grouped[cam.country] = {};
+    }
+    if (!grouped[cam.country][cam.state]) {
+      grouped[cam.country][cam.state] = [];
+    }
+    grouped[cam.country][cam.state].push(cam);
+  });
 
-    const camName = document.createElement("span");
-    camName.textContent = cam.name;
-    camName.style.flex = "1";
-    camName.onclick = () => {
-      selectCamera(cam);
-    };
+  // Get sorted countries
+  const countries = Object.keys(grouped).sort();
+  countries.forEach((country) => {
+    const countryHeading = document.createElement("h3");
+    countryHeading.textContent = country;
+    countryHeading.style.marginTop = "16px";
+    countryHeading.style.paddingLeft = "8px";
+    countryHeading.style.color = "#2c3e50";
+    countryHeading.style.borderBottom = "1px solid #eee";
+    listEl.appendChild(countryHeading);
 
-    // Set or update the badge visually based on status
-    const getStatusHtml = (isSub) => {
-      if (isSub) {
-        return `<span style="background-color: #fbe2e2; color: #d9534f; padding: 4px 8px; border-radius: 15px; font-size: 0.8em; display: inline-flex; align-items: center;"><span style="margin-right: 6px;">🔒</span> Subscription Required</span>`;
-      } else {
-        return `<span style="background-color: #e9f7ee; color: #5cb85c; padding: 4px 8px; border-radius: 15px; font-size: 0.8em; display: inline-flex; align-items: center;"><span style="margin-right: 6px;">🔓</span> Free Access</span>`;
-      }
-    };
+    // Get sorted states for this country
+    const states = Object.keys(grouped[country]).sort();
+    states.forEach((state) => {
+      const stateHeading = document.createElement("h4");
+      stateHeading.textContent = state;
+      stateHeading.style.marginTop = "8px";
+      stateHeading.style.marginLeft = "16px";
+      stateHeading.style.color = "#7f8c8d";
+      listEl.appendChild(stateHeading);
 
-    const statusBadgeEl = document.createElement("span");
-    statusBadgeEl.innerHTML = getStatusHtml(cam.subscriptionRequired);
-    statusBadgeEl.title = cam.subscriptionRequired ? "Click to mark as free" : "Click to mark as subscription required";
-    // The click handler will now attach to the parent li for better scope control,
-    // but since we are modifying this specific section's logic, let's keep it simple
-    // and apply the listener directly to a container if possible.
+      grouped[country][state].forEach((cam) => {
+        const li = document.createElement("li");
+        li.style.display = "flex";
+        li.style.alignItems = "center";
+        li.style.justifyContent = "space-between";
+        li.style.padding = "8px 16px";
+        li.style.cursor = "pointer";
+        li.style.borderBottom = "1px solid #f9f9f9";
 
-    // Instead of changing the badge element creation completely, I'll use an outer wrapper element
-    // that holds the status and attach the click handler there for better CSS scoping.
-    const statusContainer = document.createElement("span");
-    statusContainer.innerHTML = getStatusHtml(cam.subscriptionRequired);
+        const camName = document.createElement("span");
+        camName.textContent = cam.name;
+        camName.style.flex = "1";
+        camName.onclick = () => {
+          selectCamera(cam);
+        };
 
-    // Re-assigning variable to point to the new container element, not just text content
-    // This requires updating how 'subscriptionBadge' was used later.
-    // For minimal change footprint, I will update the logic around lines 104 and attach the click listener to the statusContainer itself if possible.
+		const subscriptionBadge = document.createElement("span");
+		subscriptionBadge.textContent = cam.subscriptionRequired ? "🔒" : "🔓";
+		subscriptionBadge.style.backgroundColor = cam.subscriptionRequired ? '#fee' : '#efe';
+		subscriptionBadge.style.color = cam.subscriptionRequired ? '#d9534f' : '#5cb85c';
+		subscriptionBadge.style.padding = '4px 8px';
+		subscriptionBadge.style.borderRadius = '15px';
+		subscriptionBadge.style.fontSize = '0.8em';
+		subscriptionBadge.title = cam.subscriptionRequired ? "Click to mark as free" : "Click to mark as subscription required";
 
-    /* Reverting the full structural change for now. Let's keep it as a span and style it better first. */
-    const subscriptionBadge = document.createElement("span");
-    subscriptionBadge.textContent = cam.subscriptionRequired ? "🔒" : "🔓";
-    // Apply more robust styling to visually enhance the difference
-    subscriptionBadge.style.backgroundColor = cam.subscriptionRequired ? '#fee' : '#efe';
-    subscriptionBadge.style.color = cam.subscriptionRequired ? '#d9534f' : '#5cb85c';
-    subscriptionBadge.style.padding = '4px 8px';
-    subscriptionBadge.style.borderRadius = '15px';
-    subscriptionBadge.style.fontSize = '0.8em';
-    subscriptionBadge.title = cam.subscriptionRequired ? "Click to mark as free" : "Click to mark as subscription required";
+		subscriptionBadge.onclick = (e) => {
+			e.stopPropagation();
+			cam.subscriptionRequired = !cam.subscriptionRequired;
+			updateCameraList();
+			console.log(`Updated ${cam.name}: ${cam.subscriptionRequired ? "Subscription required" : "Free"}`);
+		};
 
-    // The click handler logic is correct, it just needs the badge variable updated.
-    subscriptionBadge.onclick = (e) => {
-      e.stopPropagation();
-      cam.toggleSubscriptionStatus(); // Re-using this for now if I cannot scope out the full block edit.
-                                    // BUT WAIT: The previous fix was to REMOVE cam.toggleSubscriptionStatus().
-                                    // I must use the corrected logic (direct property flip) here, too!
-      cam.subscriptionRequired = !cam.subscriptionRequired;
-      updateCameraList();
-      console.log(`Updated ${cam.name}: ${cam.subscriptionRequired ? "Subscription required" : "Free"}`);
-    };
-    subscriptionBadge.onclick = (e) => {
-      e.stopPropagation();
-      // Toggle the subscription status property directly on the camera object
-      cam.subscriptionRequired = !cam.subscriptionRequired;
-      updateCameraList();
-      console.log(`Updated ${cam.name}: ${cam.subscriptionRequired ? "Subscription required" : "Free"}`);
-    };
+		const deleteBtn = document.createElement("button");
+		deleteBtn.textContent = "🗑️";
+		deleteBtn.title = "Remove from list";
+		deleteBtn.style.marginLeft = "10px";
+		deleteBtn.style.padding = "4px 8px";
+		deleteBtn.style.cursor = "pointer";
+		deleteBtn.style.backgroundColor = "#f2dede";
+		deleteBtn.style.border = "1px solid #e74c3c";
+		deleteBtn.style.borderRadius = "4px";
+		deleteBtn.style.color = "#c0392b";
+		deleteBtn.onclick = (e) => {
+			e.stopPropagation();
+			window.go.main.App.RemoveCamera(cam.id).then((updatedCameras) => {
+				cameras = updatedCameras;
+				updateCameraList();
+			});
+		};
 
-    li.appendChild(camName);
-    li.appendChild(subscriptionBadge);
-    li.dataset.camId = cam.id;
-    listEl.appendChild(li);
+		li.appendChild(camName);
+		li.appendChild(subscriptionBadge);
+		li.appendChild(deleteBtn);
+		li.dataset.camId = cam.id;
+		listEl.appendChild(li);
+      });
+    });
   });
 }
 

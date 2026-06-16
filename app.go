@@ -1,88 +1,45 @@
 package main
 
 import (
-	"archive/zip"
 	"context"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
-	"strconv"
+	"regexp"
 	"strings"
+
+	"traincam/internal/kml"
+	"traincam/internal/storage"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// Camera represents our train camera data
-type Camera struct {
-	ID                 int     `json:"id"`
-	Name               string  `json:"name"`
-	Lat                float64 `json:"lat"`
-	Lng                float64 `json:"lng"`
-	YoutubeURL         string  `json:"youtubeUrl"`
-	Description        string  `json:"description"`
-	Country            string  `json:"country"`
-	State              string  `json:"state"`
-	SubscriptionRequired bool `json:"subscriptionRequired"`
-}
-
 // App struct
 type App struct {
 	ctx     context.Context
-	cameras []Camera
+	cameras []storage.Camera
 	nextID  int
-}
-
-// KML XML structures
-type KML struct {
-	XMLName    xml.Name    `xml:"http://www.opengis.net/kml/2.2 kml"`
-	Document   *Document   `xml:"http://www.opengis.net/kml/2.2 Document"`
-	Placemarks []Placemark `xml:"http://www.opengis.net/kml/2.2 Placemark"`
-}
-
-type Document struct {
-	XMLName    xml.Name    `xml:"http://www.opengis.net/kml/2.2 Document"`
-	Placemarks []Placemark `xml:"http://www.opengis.net/kml/2.2 Placemark"`
-	Folders    []Folder    `xml:"http://www.opengis.net/kml/2.2 Folder"`
-}
-
-type Folder struct {
-	XMLName    xml.Name    `xml:"http://www.opengis.net/kml/2.2 Folder"`
-	Name       string      `xml:"http://www.opengis.net/kml/2.2 name"`
-	Placemarks []Placemark `xml:"http://www.opengis.net/kml/2.2 Placemark"`
-}
-
-type Placemark struct {
-	XMLName     xml.Name `xml:"http://www.opengis.net/kml/2.2 Placemark"`
-	Name        string   `xml:"http://www.opengis.net/kml/2.2 name"`
-	Description string   `xml:"http://www.opengis.net/kml/2.2 description"`
-	Point       struct {
-		XMLName     xml.Name `xml:"http://www.opengis.net/kml/2.2 Point"`
-		Coordinates string   `xml:"http://www.opengis.net/kml/2.2 coordinates"`
-	} `xml:"http://www.opengis.net/kml/2.2 Point"`
 }
 
 // NewApp creates a new App instance
 func NewApp() *App {
 	app := &App{
 		nextID: 1,
-		cameras: []Camera{
+		cameras: []storage.Camera{
 			{
-				ID:                 1,
-				Name:               "Central Station North",
-				Lat:                51.505,
-				Lng:                -0.09,
-				YoutubeURL:         "https://www.youtube.com/embed/dQw4w9WgXcQ",
+				ID:                   1,
+				Name:                 "Central Station North",
+				Lat:                  51.505,
+				Lng:                  -0.09,
+				YoutubeURL:           "https://www.youtube.com/embed/dQw4w9WgXcQ",
 				SubscriptionRequired: false,
 			},
 			{
-				ID:                 2,
-				Name:               "East Junction Crossing",
-				Lat:                51.515,
-				Lng:                -0.1,
-				YoutubeURL:         "https://www.youtube.com/embed/dQw4w9WgXcQ",
+				ID:                   2,
+				Name:                 "East Junction Crossing",
+				Lat:                  51.515,
+				Lng:                  -0.1,
+				YoutubeURL:           "https://www.youtube.com/embed/dQw4w9WgXcQ",
 				SubscriptionRequired: false,
 			},
 		},
@@ -95,14 +52,21 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	// Load cameras from persistent storage
-	if err := a.LoadCameras(); err != nil {
-		// If loading fails, just keep the hardcoded cameras
+	if loaded, err := storage.LoadCameras(""); err != nil {
 		fmt.Printf("Warning: could not load cameras from storage: %v\n", err)
+	} else if loaded != nil {
+		a.cameras = loaded
+		a.nextID = 1
+		for _, cam := range a.cameras {
+			if cam.ID >= a.nextID {
+				a.nextID = cam.ID + 1
+			}
+		}
 	}
 }
 
 // GetCameras returns our list of train cameras to the frontend
-func (a *App) GetCameras() []Camera {
+func (a *App) GetCameras() []storage.Camera {
 	return a.cameras
 }
 
@@ -140,14 +104,52 @@ func (a *App) SelectKMLFile() (string, error) {
 	return path, nil
 }
 
+func extractState(name string) string {
+	// Matches ", XX" or ", XXXX" (state name) at the end of a string, allowing for optional trailing info or whitespace.
+	re := regexp.MustCompile(`,\s*([A-Z]{2}|[A-Z][a-z]+)(?:\s*\(.*\))?\s*$`)
+	matches := re.FindStringSubmatch(name)
+	if len(matches) > 1 {
+		state := matches[1]
+		// If it's a full name, map it to the shortcode
+		if !isShortcode(state) {
+			if shortcode, ok := stateToShortcode[state]; ok {
+				return shortcode
+			}
+		}
+		return state
+	}
+	return ""
+}
+
+var stateToShortcode = map[string]string{
+	"Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
+	"Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "Florida": "FL", "Georgia": "GA",
+	"Hawaii": "HI", "Idaho": "ID", "Illinois": "IL", "Indiana": "IN", "Iowa": "IA",
+	"Kansas": "KS", "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD",
+	"Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS", "Missouri": "MO",
+	"Montana": "MT", "Nebraska": "NE", "Nevada": "NV", "New Hampshire": "NH", "New Jersey": "NJ",
+	"New Mexico": "NM", "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH",
+	"Oklahoma": "OK", "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC",
+	"South Dakota": "SD", "Tennessee": "TN", "Texas": "TX", "Utah": "UT", "Vermont": "VT",
+	"Virginia": "VA", "Washington": "WA", "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY",
+}
+
+func isShortcode(s string) bool {
+	return len(s) == 2 && s[0] >= 'A' && s[0] <= 'Z' && s[1] >= 'A' && s[1] <= 'Z'
+}
+
 // ImportKML imports cameras from a KML/KMZ file
-func (a *App) ImportKML(filePath string) ([]Camera, error) {
+func (a *App) ImportKML(filePath string) ([]storage.Camera, error) {
 	var kmlContent []byte
+	var filesMap map[string][]byte
 	var err error
 
 	if strings.HasSuffix(strings.ToLower(filePath), ".kmz") {
-		kmlContent, err = extractKMLFromKMZ(filePath)
+		fmt.Printf("DEBUG: Extracting KMZ file: %s\n", filePath)
+		kmlContent, filesMap, err = kml.ExtractKMLFromKMZ(filePath)
+		fmt.Printf("DEBUG: Extracted KML content size: %d, Files in map: %d\n", len(kmlContent), len(filesMap))
 	} else {
+
 		kmlContent, err = os.ReadFile(filePath)
 	}
 
@@ -155,66 +157,47 @@ func (a *App) ImportKML(filePath string) ([]Camera, error) {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Debug: log the KML content
-	fmt.Printf("DEBUG: KML content length: %d bytes\n", len(kmlContent))
-	fmt.Printf("DEBUG: First 500 chars:\n%s\n", string(kmlContent[:min(500, len(kmlContent))]))
-
-	var kml KML
-	err = xml.Unmarshal(kmlContent, &kml)
-	if err != nil {
+	var kmlData kml.KML
+	if err := xml.Unmarshal(kmlContent, &kmlData); err != nil {
 		return nil, fmt.Errorf("failed to parse KML: %w", err)
 	}
 
-	// Debug: log what was parsed
-	fmt.Printf("DEBUG: KML.Document is nil: %v\n", kml.Document == nil)
-	if kml.Document != nil {
-		fmt.Printf("DEBUG: Document placemarks: %d\n", len(kml.Document.Placemarks))
-		fmt.Printf("DEBUG: Document folders: %d\n", len(kml.Document.Folders))
-	}
-	fmt.Printf("DEBUG: Root placemarks: %d\n", len(kml.Placemarks))
-
-	var placemarks []Placemark
-	if kml.Document != nil && len(kml.Document.Placemarks) > 0 {
-		placemarks = kml.Document.Placemarks
-	} else if kml.Document != nil && len(kml.Document.Folders) > 0 {
-		// Extract placemarks from folders
-		for _, folder := range kml.Document.Folders {
-			fmt.Printf("DEBUG: Folder '%s': %d placemarks\n", folder.Name, len(folder.Placemarks))
+	var placemarks []kml.Placemark
+	if kmlData.Document != nil && len(kmlData.Document.Placemarks) > 0 {
+		placemarks = kmlData.Document.Placemarks
+	} else if kmlData.Document != nil && len(kmlData.Document.Folders) > 0 {
+		for _, folder := range kmlData.Document.Folders {
 			placemarks = append(placemarks, folder.Placemarks...)
 		}
 	} else {
-		placemarks = kml.Placemarks
+		placemarks = kmlData.Placemarks
 	}
 
-	fmt.Printf("DEBUG: Using %d placemarks\n", len(placemarks))
-
-	importedCameras := []Camera{}
-	for i, pm := range placemarks {
-		fmt.Printf("DEBUG: Placemark %d: name=%s, coords=%s\n", i, pm.Name, pm.Point.Coordinates)
-
+	importedCameras := []storage.Camera{}
+	for _, pm := range placemarks {
 		if pm.Point.Coordinates == "" {
 			continue
 		}
 
-		lat, lng, err := parseCoordinates(pm.Point.Coordinates)
+		lat, lng, err := kml.ParseCoordinates(pm.Point.Coordinates)
 		if err != nil {
-			fmt.Printf("DEBUG: Failed to parse coords for %s: %v\n", pm.Name, err)
 			continue
 		}
 
-		// If no YouTube URL found in description, use a default placeholder
-		youtubeUrl := extractYoutubeURL(pm.Description)
+		youtubeUrl := kml.ExtractYoutubeURL(pm.Description)
 		if youtubeUrl == "" {
 			youtubeUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ"
 		}
-			camera := Camera{
-				ID:                 a.nextID,
-				Name:               pm.Name,
-				Lat:                lat,
-				Lng:                lng,
-				Description:        pm.Description,
-				YoutubeURL:         youtubeUrl,
-				SubscriptionRequired: false,
+
+		camera := storage.Camera{
+			ID:                   a.nextID,
+			Name:                 pm.Name,
+			Lat:                  lat,
+			Lng:                  lng,
+			Description:          pm.Description,
+			YoutubeURL:           youtubeUrl,
+			SubscriptionRequired: false,
+			State:                extractState(pm.Name),
 		}
 
 		a.cameras = append(a.cameras, camera)
@@ -226,175 +209,28 @@ func (a *App) ImportKML(filePath string) ([]Camera, error) {
 		return nil, fmt.Errorf("no valid placemarks found in KML file")
 	}
 
-	// Save cameras to persistent storage after successful import
-	if err := a.SaveCameras(); err != nil {
+	if err := storage.SaveCameras(a.cameras, ""); err != nil {
 		fmt.Printf("Warning: could not save cameras to storage: %v\n", err)
 	}
 
 	return importedCameras, nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// extractKMLFromKMZ extracts the doc.kml file from a KMZ (zipped KML)
-func extractKMLFromKMZ(kmzPath string) ([]byte, error) {
-	reader, err := zip.OpenReader(kmzPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open KMZ file: %w", err)
-	}
-	defer reader.Close()
-
-	var foundFiles []string
-	for _, file := range reader.File {
-		foundFiles = append(foundFiles, file.Name)
-
-		// Look for .kml file (case-insensitive)
-		if strings.HasSuffix(strings.ToLower(file.Name), ".kml") {
-			f, err := file.Open()
-			if err != nil {
-				return nil, fmt.Errorf("failed to open KML file in archive: %w", err)
-			}
-			defer f.Close()
-
-			content, err := io.ReadAll(f)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read KML content: %w", err)
-			}
-			return content, nil
-		}
-	}
-
-	return nil, fmt.Errorf("no KML file found in KMZ archive. Found files: %v", foundFiles)
-}
-
-// extractYoutubeURL extracts and converts a YouTube URL from a description
-// Returns the standard embed URL which works best in Wails
-func extractYoutubeURL(description string) string {
-	// Method 1: Look for youtube.com URLs with different patterns
-	// Handle "http://", "https://", and URLs with trailing punctuation
-	urlPatterns := []string{
-		"https://www.youtube.com/watch?v=",
-		"http://www.youtube.com/watch?v=",
-		"youtube.com/watch?v=",
-		"https://youtu.be/",
-		"http://youtu.be/",
-		"youtu.be/",
-	}
-
-	for _, pattern := range urlPatterns {
-		startIdx := strings.Index(description, pattern)
-		if startIdx != -1 {
-			// Find the video ID (starts after pattern)
-			videoIDStart := startIdx + len(pattern)
-			// Find the end of the video ID (until space, quote, comma, period, question mark, &, <, >, /, =, or end of string)
-			videoIDEnd := videoIDStart
-			for videoIDEnd < len(description) && description[videoIDEnd] != ' ' &&
-				description[videoIDEnd] != '"' &&
-				description[videoIDEnd] != '\'' && description[videoIDEnd] != ',' &&
-				description[videoIDEnd] != '.' && description[videoIDEnd] != '?' &&
-				description[videoIDEnd] != '&' && description[videoIDEnd] != '<' &&
-				description[videoIDEnd] != '>' && description[videoIDEnd] != '\n' &&
-				description[videoIDEnd] != '\r' && description[videoIDEnd] != '/' &&
-				description[videoIDEnd] != '=' {
-				videoIDEnd++
-			}
-			videoID := description[videoIDStart:videoIDEnd]
-			return "https://www.youtube.com/embed/" + videoID + "?modestbranding=1"
-		}
-	}
-
-	return ""
-}
-
-// parseCoordinates parses KML coordinates format: "lng,lat[,altitude]"
-func parseCoordinates(coordStr string) (float64, float64, error) {
-	coords := strings.Split(strings.TrimSpace(coordStr), ",")
-	if len(coords) < 2 {
-		return 0, 0, fmt.Errorf("invalid coordinates format")
-	}
-
-	lng, err := strconv.ParseFloat(coords[0], 64)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	lat, err := strconv.ParseFloat(coords[1], 64)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	return lat, lng, nil
-}
-
-// getCamerasStoragePath returns the path to the cameras.json file
-func getCamerasStoragePath() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	storageDir := filepath.Join(homeDir, ".traincam")
-	if err := os.MkdirAll(storageDir, 0755); err != nil {
-		return "", err
-	}
-
-	return filepath.Join(storageDir, "cameras.json"), nil
-}
-
-// SaveCameras saves the current camera list to a JSON file
-func (a *App) SaveCameras() error {
-	storagePath, err := getCamerasStoragePath()
-	if err != nil {
-		return fmt.Errorf("could not determine storage path: %w", err)
-	}
-
-	data, err := json.MarshalIndent(a.cameras, "", "  ")
-	if err != nil {
-		return fmt.Errorf("could not marshal cameras to JSON: %w", err)
-	}
-
-	if err := os.WriteFile(storagePath, data, 0644); err != nil {
-		return fmt.Errorf("could not write cameras file: %w", err)
-	}
-
-	return nil
-}
-
-// LoadCameras loads the camera list from a JSON file
-func (a *App) LoadCameras() error {
-	storagePath, err := getCamerasStoragePath()
-	if err != nil {
-		return fmt.Errorf("could not determine storage path: %w", err)
-	}
-
-	// If file doesn't exist, keep the hardcoded cameras
-	if _, err := os.Stat(storagePath); os.IsNotExist(err) {
-		return nil
-	}
-
-	data, err := os.ReadFile(storagePath)
-	if err != nil {
-		return fmt.Errorf("could not read cameras file: %w", err)
-	}
-
-	var cameras []Camera
-	if err := json.Unmarshal(data, &cameras); err != nil {
-		return fmt.Errorf("could not parse cameras JSON: %w", err)
-	}
-
-	// Replace in-memory cameras and update nextID
-	a.cameras = cameras
-	a.nextID = 1
+// RemoveCamera removes a camera from the list and persistent storage by ID
+func (a *App) RemoveCamera(id int) []storage.Camera {
+	var updatedCameras []storage.Camera
 	for _, cam := range a.cameras {
-		if cam.ID >= a.nextID {
-			a.nextID = cam.ID + 1
+		if cam.ID != id {
+			updatedCameras = append(updatedCameras, cam)
 		}
 	}
 
-	return nil
+	a.cameras = updatedCameras
+
+	// Update the persistent storage
+	if err := storage.SaveCameras(a.cameras, ""); err != nil {
+		fmt.Printf("Warning: could not save cameras after removal: %v\n", err)
+	}
+
+	return a.cameras
 }
